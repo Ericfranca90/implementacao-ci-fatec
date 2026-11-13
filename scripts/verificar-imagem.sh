@@ -6,7 +6,7 @@ trap 'docker logs "$container" || true; docker rm -f "$container" >/dev/null' EX
 endereco=$(docker port "$container" 3000/tcp)
 base="http://$endereco/api/pedidos"
 
-curl -fsS --retry 5 --retry-connrefused --max-time 3 "$base" >/dev/null
+curl -fsS --retry 5 --retry-all-errors --max-time 3 "$base" >/dev/null
 criado=$(curl -fsS --max-time 3 -H 'Content-Type: application/json' \
   --data '{"quantidade":3}' "$base")
 consultado=$(curl -fsS --max-time 3 "$base/1")
