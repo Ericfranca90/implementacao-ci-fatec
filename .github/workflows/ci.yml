@@ -1,0 +1,57 @@
+name: CI da API de pedidos
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+jobs:
+  validar:
+    name: Validar e empacotar
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      IMAGE: api-pedidos:${{ github.sha }}
+    steps:
+      - name: Obter o código do PR
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Preparar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24.22.1"
+          cache: npm
+      - name: Instalar dependências
+        run: npm ci
+      - name: Análise estática
+        run: npm run lint
+      - name: Verificar formatação
+        run: npm run format:check
+      - name: Análise estática de segurança
+        run: npm run security:check
+      - name: Compilar a aplicação
+        run: npm run build
+      - name: Executar testes unitários
+        run: npm run test:unit
+      - name: Executar testes de integração
+        run: npm run test:integration
+      - name: Criar imagem Docker
+        run: docker buildx build --load --tag "$IMAGE" .
+      - name: Verificar a imagem em execução
+        run: bash scripts/verificar-imagem.sh "$IMAGE"
+      - name: Exportar imagem
+        run: docker image save "$IMAGE" | gzip > imagem.tar.gz
+      - name: Salvar imagem como artefato
+        uses: actions/upload-artifact@v7
+        with:
+          name: imagem-${{ github.sha }}-${{ github.run_attempt }}
+          path: imagem.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
